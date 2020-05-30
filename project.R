@@ -20,100 +20,100 @@ str(df)
 stargazer(df, type="text", summary = TRUE)
 
 
-table(df$TIMETRND)
+table(df$TIMETRND) # we have unbalanced data
 
-# for each individual we find the highest education attainment 
+      # for each individual we find the highest education attainment 
+      
+      df_edu <- df %>%  
+        group_by(PERSONID) %>% 
+        filter(EDUC == max(EDUC), TIMETRND == max(TIMETRND)) 
+      
+      # scatter plot timtrnd vs educ
+      # we can observe that some observations have very low timetrnd 
+      # since we are dealing with the highest education attainment
+      # we considered these observations outliers,
+      # and we need to remove them from the data 
+      
+      ggplot(df_edu, aes(x=TIMETRND, y=EDUC)) +
+        geom_point(shape=19, alpha=0.5) +
+        geom_smooth()
+      
+      # select rows that max(TIMETRND) >=3
+      
+      ID_to_drop <- subset(df_edu, TIMETRND <= 2)$PERSONID # length(ID_ID_to_drop) = 30
+      df_edu <- subset(df_edu, TIMETRND >= 3)
+      
+      # child edu vs mother edu
+      
+      p1 <- ggplot(df_edu, aes(x=EDUC, y=MOTHERED)) +
+        geom_point(shape=19, alpha=0.5) +
+        geom_smooth()
+      
+      ggMarginal(p1, type="histogram")
+      
+      # child edu vs fatehr edu
+      
+      p2 <- ggplot(df_edu, aes(x=EDUC, y=FATHERED)) +
+        geom_point(shape=19, alpha=0.5) +
+        geom_smooth()
+      
+      ggMarginal(p2, type="histogram")
+      
+      # child edu vs average parents edu
+      
+      df_edu$AVGPRNT <- (df_edu$MOTHERED + df_edu$FATHERED)/2
+      
+      p3 <- ggplot(df_edu, aes(x=EDUC, y=avgPare)) +
+        geom_point(shape=19, alpha=0.5) +
+        geom_smooth()
+      
+      ggMarginal(p3, type="histogram")
+      
+      # there seems to be a linear relationship in above plots.
+      
+      # drop the PERSONID with few TIMETRND
+      
+      df <- subset(df, ! PERSONID %in% ID_to_drop)
+      summary(df)
+      
+      # -----------------------------------
+      #
+      # baseline: OLS: child educ vs parent educ 
+      # literature: Intergenerational transmission of education rural china (2019)
+      # Holmlund (2011), Pronzato (2012)
+      # 
+      # -----------------------------------
 
-df_edu <- df %>%  
-  group_by(PERSONID) %>% 
-  filter(EDUC == max(EDUC), TIMETRND == max(TIMETRND)) 
-
-# scatter plot timtrnd vs educ
-# we can observe that some observations have very low timetrnd 
-# since we are dealing with the highest education attainment
-# we considered these observations outliers,
-# and we need to remove them from the data 
-
-ggplot(df_edu, aes(x=TIMETRND, y=EDUC)) +
-  geom_point(shape=19, alpha=0.5) +
-  geom_smooth()
-
-# select rows that max(TIMETRND) >=3
-
-ID_to_drop <- subset(df_edu, TIMETRND <= 2)$PERSONID # length(ID_ID_to_drop) = 30
-df_edu <- subset(df_edu, TIMETRND >= 3)
-
-# child edu vs mother edu
-
-p1 <- ggplot(df_edu, aes(x=EDUC, y=MOTHERED)) +
-  geom_point(shape=19, alpha=0.5) +
-  geom_smooth()
-
-ggMarginal(p1, type="histogram")
-
-# child edu vs fatehr edu
-
-p2 <- ggplot(df_edu, aes(x=EDUC, y=FATHERED)) +
-  geom_point(shape=19, alpha=0.5) +
-  geom_smooth()
-
-ggMarginal(p2, type="histogram")
-
-# child edu vs average parents edu
-
-df_edu$AVGPRNT <- (df_edu$MOTHERED + df_edu$FATHERED)/2
-
-p3 <- ggplot(df_edu, aes(x=EDUC, y=avgPare)) +
-  geom_point(shape=19, alpha=0.5) +
-  geom_smooth()
-
-ggMarginal(p3, type="histogram")
-
-# there seems to be a linear relationship in above plots.
-
-# drop the PERSONID with few TIMETRND
-
-df <- subset(df, ! PERSONID %in% ID_to_drop)
-summary(df)
-
-# -----------------------------------
-#
-# baseline: OLS: child educ vs parent educ 
-# literature: Intergenerational transmission of education rural china (2019)
-# Holmlund (2011), Pronzato (2012)
-# 
-# -----------------------------------
-
-ols_mom <- lm(EDUC~MOTHERED+BRKNHOME+SIBLINGS, data=df_edu)
-ols_dad <- lm(EDUC~FATHERED+BRKNHOME+SIBLINGS, data=df_edu)
-ols_avg <- lm(EDUC~AVGPRNT+BRKNHOME+SIBLINGS, data=df_edu)
-
-stargazer(ols_mom, ols_dad, ols_avg, type = "text")
-
-# -----------------------------------
-#
-# FFE model: child educ vs parent educ 
-# literature: Intergenerational transmission of education rural china (2019)
-# Holmlund (2011), Pronzato (2012)
-# FFE model to eliminate unobservable characteristics shared in each household
-# 
-# -----------------------------------
-
-
-
-# -----------------------------------
-# 
-# logWage base model: OLS
-# 
-# -----------------------------------
-
-ols.base.1 <- plm(LOGWAGE~EDUC+POTEXPER+ABILITY+MOTHERED+FATHERED+BRKNHOME+SIBLINGS, data=df, index=c("PERSONID", "TIMETRND"), model="pooling")
-ols.base.4 <- plm(LOGWAGE~EDUC+POTEXPER+ABILITY+FATHERED+BRKNHOME+SIBLINGS, data=df, index=c("PERSONID", "TIMETRND"), model="pooling")
-
-ols.base.2 <- plm(LOGWAGE~EDUC+POTEXPER+ABILITY+MOTHERED+FATHERED+BRKNHOME+SIBLINGS+MOTHERED*FATHERED, data=df, index=c("PERSONID", "TIMETRND"), model="pooling")
-ols.base.3 <- plm(LOGWAGE~EDUC+I(EDUC^2)+POTEXPER+I(POTEXPER^2)+ABILITY+MOTHERED+FATHERED+BRKNHOME+SIBLINGS+MOTHERED*FATHERED, data=df, index=c("PERSONID", "TIMETRND"), model="pooling")
-
-stargazer(ols.base.1, ols.base.4, ols.base.2, ols.base.3, type="text")
+      ols_mom <- lm(EDUC~MOTHERED+BRKNHOME+SIBLINGS, data=df_edu)
+      ols_dad <- lm(EDUC~FATHERED+BRKNHOME+SIBLINGS, data=df_edu)
+      ols_avg <- lm(EDUC~AVGPRNT+BRKNHOME+SIBLINGS, data=df_edu)
+      
+      stargazer(ols_mom, ols_dad, ols_avg, type = "text")
+      
+      # -----------------------------------
+      #
+      # FFE model: child educ vs parent educ 
+      # literature: Intergenerational transmission of education rural china (2019)
+      # Holmlund (2011), Pronzato (2012)
+      # FFE model to eliminate unobservable characteristics shared in each household
+      # 
+      # -----------------------------------
+      
+      
+      
+      # -----------------------------------
+      # 
+      # logWage base model: OLS
+      # 
+      # -----------------------------------
+      
+      ols.base.1 <- plm(LOGWAGE~EDUC+POTEXPER+ABILITY+MOTHERED+FATHERED+BRKNHOME+SIBLINGS, data=df, index=c("PERSONID", "TIMETRND"), model="pooling")
+      ols.base.4 <- plm(LOGWAGE~EDUC+POTEXPER+ABILITY+FATHERED+BRKNHOME+SIBLINGS, data=df, index=c("PERSONID", "TIMETRND"), model="pooling")
+      
+      ols.base.2 <- plm(LOGWAGE~EDUC+POTEXPER+ABILITY+MOTHERED+FATHERED+BRKNHOME+SIBLINGS+MOTHERED*FATHERED, data=df, index=c("PERSONID", "TIMETRND"), model="pooling")
+      ols.base.3 <- plm(LOGWAGE~EDUC+I(EDUC^2)+POTEXPER+I(POTEXPER^2)+ABILITY+MOTHERED+FATHERED+BRKNHOME+SIBLINGS+MOTHERED*FATHERED, data=df, index=c("PERSONID", "TIMETRND"), model="pooling")
+      
+      stargazer(ols.base.1, ols.base.4, ols.base.2, ols.base.3, type="text")
 
 
 # -----------------------------------
@@ -140,13 +140,39 @@ stargazer(ols, fixed, random, type ="text")
 
 # -----------------------------------
 # 
-# panel model: hausman taylor
+# panel model: 2SLS
 # 
 # -----------------------------------
 
+# Z: instrumental var 
+# use family background as excluded instruments:
 
+ols.fam <- lm(EDUC~MOTHERED+FATHERED, data=df)
+summary(ols.fam)
+EDUChat <- fitted(ols.fam)
 
+ols.fam.y <- lm(LOGWAGE~EDUChat+POTEXPER+ABILITY+MOTHERED+FATHERED+BRKNHOME+SIBLINGS, data=df)
+summary(ols.fam.y)
 
+# use personal ability as excluded instruments:
+
+ols.person <- lm(POTEXPER+ABILITY~BRKNHOME+SIBLINGS, data=df)
+summary(ols.person)
+
+PERSON_hat <- fitted(ols.person)
+ols.person.y <- lm(LOGWAGE~PERSON_hat+EDUC++MOTHERED+FATHERED+BRKNHOME+SIBLINGS, data=df)
+summary(ols.person.y)
+
+# ability + educ
+
+ols.pereduc <- lm(EDUC+ABILITY~MOTHERED+FATHERED, data=df)
+summary(ols.pereduc)
+PEREDUC_hat <- fitted(ols.pereduc)
+
+ols.pereduc.y <- lm(LOGWAGE~PEREDUC_hat+POTEXPER+MOTHERED+FATHERED+BRKNHOME+SIBLINGS, data=df)
+summary(ols.pereduc.y)
+
+stargazer(ols, fixed, random, ols.fam.y, ols.person.y, ols.pereduc.y, type ="text")
 
 # -----------------------------------
 # 
@@ -156,7 +182,14 @@ stargazer(ols, fixed, random, type ="text")
 
 library(AER)
 
-ivmod <- ivreg(LOGWAGE~EDUC+POTEXPER+ABILITY+MOTHERED+FATHERED+BRKNHOME+SIBLINGS+MOTHERED*FATHERED|POTEXPER~ABILITY+MOTHERED+FATHERED+BRKNHOME+SIBLINGS+MOTHERED*FATHERED, data=df)
+ivedu <- ivreg(LOGWAGE~EDUC+POTEXPER+ABILITY+BRKNHOME+SIBLINGS | POTEXPER+ABILITY+BRKNHOME+SIBLINGS + MOTHERED+FATHERED, data=df)
+summary(ivedu)
+
+ivself <- ivreg(LOGWAGE ~ POTEXPER+ABILITY + EDUC+MOTHERED+FATHERED | EDUC+MOTHERED+FATHERED + BRKNHOME+SIBLINGS, data=df)
+summary(ivself)
+
+
+
 
 
 # can we use  MOTHERED as an instrumental var?
