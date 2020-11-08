@@ -1,1 +1,1 @@
-This repository contains my analysis on family background and returns to education. 
+This repository contains code of 2400-DS1AE-Advanced-Econometrics class project, which titiled: Family Background in Returns to Education: An Empirical Analysis of Family’s Impact on Personal Achievement
